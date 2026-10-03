@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pemantau Kecepatan Internet</title>
+<style>
+:root{--bg:#f3f5f4;--card:#fff;--ink:#17211d;--mute:#66736d;--line:#dbe2de;--acc:#0f766e;--dl:#0f766e;--ul:#b45309;--pg:#4f46e5}
+@media (prefers-color-scheme:dark){:root{--bg:#101614;--card:#18211e;--ink:#e8efec;--mute:#93a39b;--line:#2a3733;--acc:#2dd4bf;--dl:#2dd4bf;--ul:#fbbf24;--pg:#a5b4fc}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 48px}
+header{text-align:center;padding:12px 0 20px}
+#clock{font-size:clamp(2.4rem,9vw,4rem);font-weight:700;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+#date{color:var(--mute);margin-top:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+h2{font-size:1rem;margin:0 0 10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:8px}
+button:hover{border-color:var(--acc)}
+button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+@media (prefers-color-scheme:dark){button.on{color:#04211d}}
+button.main{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600;padding:12px 22px}
+@media (prefers-color-scheme:dark){button.main{color:#04211d}}
+button:disabled{opacity:.5;cursor:not-allowed}
+.lbl{color:var(--mute);min-width:96px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center}
+.stat b{display:block;font-size:1.8rem;font-variant-numeric:tabular-nums}
+.stat span{color:var(--mute);font-size:.85rem}
+#status{margin-top:10px;color:var(--mute);min-height:1.5em}
+canvas{width:100%;height:220px;display:block}
+.legend{display:flex;gap:14px;color:var(--mute);font-size:.85rem;margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.tw{max-height:360px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{position:sticky;top:0;background:var(--card);color:var(--mute);font-weight:600}
+.empty{color:var(--mute);text-align:center;padding:18px}
+@media (max-width:480px){.stat b{font-size:1.35rem}.lbl{min-width:100%}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div id="clock">--:--:--</div>
+  <div id="date">Waktu Indonesia Barat (WIB, GMT+7)</div>
+</header>
+
+<section class="card">
+  <h2>Hasil tes terakhir</h2>
+  <div class="stats">
+    <div class="stat"><b id="rDl" style="color:var(--dl)">–</b><span>Unduh (Mbps)</span></div>
+    <div class="stat"><b id="rUl" style="color:var(--ul)">–</b><span>Unggah (Mbps)</span></div>
+    <div class="stat"><b id="rPg" style="color:var(--pg)">–</b><span>Ping (ms)</span></div>
+  </div>
+  <div class="row" style="margin-top:14px"><button class="main" id="btnTest">Tes sekarang</button></div>
+  <div id="status" aria-live="polite">Siap.</div>
+</section>
+
+<section class="card">
+  <h2>Tes otomatis</h2>
+  <div class="row" style="margin-bottom:10px">
+    <span class="lbl">Aktifkan?</span>
+    <button id="autoYes">Ya</button><button id="autoNo">Tidak</button>
+  </div>
+  <div class="row">
+    <span class="lbl">Interval</span>
+    <span id="intervals" class="row"></span>
+  </div>
+  <div id="next" style="color:var(--mute);margin-top:10px"></div>
+  <div style="color:var(--mute);font-size:.85rem;margin-top:6px">Tab ini harus tetap terbuka agar tes otomatis berjalan. Jangan matikan layar atau mode tidur komputer.</div>
+</section>
+
+<section class="card">
+  <h2>Grafik riwayat</h2>
+  <canvas id="chart"></canvas>
+  <div class="legend"><span><i style="background:var(--dl)"></i>Unduh</span><span><i style="background:var(--ul)"></i>Unggah</span></div>
+</section>
+
+<section class="card">
+  <div class="row" style="justify-content:space-between;margin-bottom:10px">
+    <h2 style="margin:0">Riwayat <span id="count" style="color:var(--mute);font-weight:400"></span></h2>
+    <span class="row"><button id="btnCsv">Ekspor CSV</button><button id="btnClear">Hapus riwayat</button></span>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Waktu (WIB)</th><th>Unduh</th><th>Unggah</th><th>Ping</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+  <div style="color:var(--mute);font-size:.85rem;margin-top:8px">Riwayat tersimpan hanya di browser perangkat ini. Ekspor CSV secara berkala sebagai cadangan.</div>
+</section>
+</main>
+
+<script>
+(function(){
+const TZ='Asia/Jakarta', HKEY='speedHistory.v1', SKEY='speedSettings.v1';
+const INTERVALS=[5,10,15,30,60];
+const $=id=>document.getElementById(id);
+
+/* ---------- Penyimpanan ---------- */
+function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){setStatus('Gagal menyimpan ke browser (penyimpanan penuh atau diblokir).')}}
+let history=load(HKEY,[]);
+let settings=Object.assign({auto:false,interval:15},load(SKEY,{}));
+
+/* ---------- Jam WIB ---------- */
+const tf=new Intl.DateTimeFormat('id-ID',{timeZone:TZ,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+const df=new Intl.DateTimeFormat('id-ID',{timeZone:TZ,weekday:'long',day:'numeric',month:'long',year:'numeric'});
+const rf=new Intl.DateTimeFormat('id-ID',{timeZone:TZ,day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+function tick(){
+  const n=new Date();
+  $('clock').textContent=tf.format(n).replace(/\./g,':');
+  $('date').textContent=df.format(n)+' · WIB (GMT+7)';
+  updateNext();
+}
+
+/* ---------- Pengukuran ---------- */
+const BASE='https://speed.cloudflare.com/__down?bytes=';
+const UP='https://speed.cloudflare.com/__up';
+let running=false;
+function setStatus(t){$('status').textContent=t}
+
+async function measurePing(){
+  const t=[];
+  for(let i=0;i<6;i++){
+    const s=performance.now();
+    await fetch(BASE+'0&r='+Math.random(),{cache:'no-store'});
+    t.push(performance.now()-s);
+  }
+  t.shift(); // buang yang pertama (koneksi awal)
+  return Math.min(...t);
+}
+
+async function measureDown(){
+  const ctl=new AbortController(), LIMIT=8000;
+  const s0=performance.now();
+  const res=await fetch(BASE+'25000000&r='+Math.random(),{cache:'no-store',signal:ctl.signal});
+  const rd=res.body.getReader();
+  let bytes=0,start=null;
+  while(true){
+    const {done,value}=await rd.read();
+    if(done)break;
+    if(start===null)start=performance.now();
+    bytes+=value.length;
+    const el=performance.now()-start;
+    if(el>500)setStatus('Mengukur unduh… '+(bytes*8/el/1000).toFixed(1)+' Mbps');
+    if(el>LIMIT){ctl.abort();break}
+  }
+  const el=(performance.now()-(start||s0))/1000;
+  return bytes*8/el/1e6;
+}
+
+function measureUp(){
+  return new Promise((resolve,reject)=>{
+    const size=8e6, LIMIT=8000, blob=new Blob([new Uint8Array(size)]);
+    const x=new XMLHttpRequest();
+    let t0=null,last=0;
+    x.open('POST',UP+'?r='+Math.random());
+    const finish=()=>{
+      const el=(performance.now()-(t0||performance.now()))/1000;
+      resolve(el>0?last*8/el/1e6:0);
+    };
+    x.upload.onloadstart=()=>{t0=performance.now()};
+    x.upload.onprogress=e=>{
+      last=e.loaded;
+      const el=performance.now()-t0;
+      if(el>500)setStatus('Mengukur unggah… '+(last*8/el/1000).toFixed(1)+' Mbps');
+      if(el>LIMIT){x.abort();finish()}
+    };
+    x.onload=()=>{last=size;finish()};
+    x.onerror=()=>reject(new Error('Unggah gagal'));
+    x.send(blob);
+  });
+}
+
+async function runTest(source){
+  if(running)return;
+  running=true; $('btnTest').disabled=true;
+  const rec={t:Date.now(),dl:null,ul:null,ping:null,auto:source==='auto',err:null};
+  try{
+    setStatus('Mengukur ping…');
+    rec.ping=await measurePing(); $('rPg').textContent=rec.ping.toFixed(0);
+    setStatus('Mengukur unduh…');
+    rec.dl=await measureDown(); $('rDl').textContent=rec.dl.toFixed(1);
+    setStatus('Mengukur unggah…');
+    rec.ul=await measureUp(); $('rUl').textContent=rec.ul.toFixed(1);
+    setStatus('Selesai pada '+tf.format(new Date()).replace(/\./g,':')+' WIB.');
+  }catch(e){
+    rec.err=String(e.message||e);
+    setStatus('Tes gagal: koneksi terputus atau server tidak terjangkau. Kegagalan dicatat di riwayat.');
+  }
+  history.push(rec);
+  if(history.length>20000)history=history.slice(-20000);
+  save(HKEY,history);
+  render();
+  running=false; $('btnTest').disabled=false;
+  if(settings.auto)scheduleNext();
+}
+
+/* ---------- Tes otomatis ---------- */
+let nextAt=null, timer=null, wake=null;
+function scheduleNext(){
+  clearTimeout(timer);
+  if(!settings.auto){nextAt=null;return}
+  nextAt=Date.now()+settings.interval*60000;
+  timer=setTimeout(()=>runTest('auto'),settings.interval*60000);
+}
+function updateNext(){
+  const el=$('next');
+  if(!settings.auto){el.textContent='Tes otomatis nonaktif.';return}
+  if(running||!nextAt){el.textContent='Tes otomatis aktif. Sedang mengukur…';return}
+  const s=Math.max(0,Math.round((nextAt-Date.now())/1000));
+  el.textContent='Tes otomatis aktif. Tes berikutnya dalam '+Math.floor(s/60)+' menit '+(s%60)+' detik.';
+  if(s===0&&!running&&Date.now()-nextAt>3000){runTest('auto')} // cadangan jika timer tertunda
+}
+async function setWake(on){
+  try{
+    if(on&&'wakeLock' in navigator){wake=await navigator.wakeLock.request('screen')}
+    else if(wake){await wake.release();wake=null}
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(settings.auto&&document.visibilityState==='visible')setWake(true)});
+
+function applySettings(){
+  $('autoYes').classList.toggle('on',settings.auto);
+  $('autoNo').classList.toggle('on',!settings.auto);
+  document.querySelectorAll('#intervals button').forEach(b=>b.classList.toggle('on',+b.dataset.m===settings.interval));
+  save(SKEY,settings);
+}
+INTERVALS.forEach(m=>{
+  const b=document.createElement('button');
+  b.textContent=m===60?'1 jam':m+' menit'; b.dataset.m=m;
+  b.onclick=()=>{settings.interval=m;applySettings();if(settings.auto&&!running)scheduleNext()};
+  $('intervals').appendChild(b);
+});
+$('autoYes').onclick=()=>{settings.auto=true;applySettings();setWake(true);if(!running)scheduleNext()};
+$('autoNo').onclick=()=>{settings.auto=false;applySettings();setWake(false);clearTimeout(timer);nextAt=null};
+$('btnTest').onclick=()=>{clearTimeout(timer);runTest('manual')};
+
+/* ---------- Tampilan riwayat ---------- */
+function render(){
+  const body=$('rows'); body.innerHTML='';
+  $('count').textContent=history.length?'('+history.length+' tes)':'';
+  if(!history.length){
+    body.innerHTML='<tr><td colspan="4" class="empty">Belum ada riwayat. Tekan “Tes sekarang” untuk memulai.</td></tr>';
+  }else{
+    const f=document.createDocumentFragment();
+    history.slice().reverse().slice(0,300).forEach(r=>{
+      const tr=document.createElement('tr');
+      const cells=r.err?[rf.format(r.t).replace(/\./g,':'),'gagal','gagal','gagal']
+        :[rf.format(r.t).replace(/\./g,':'),r.dl.toFixed(1)+' Mbps',r.ul.toFixed(1)+' Mbps',r.ping.toFixed(0)+' ms'];
+      cells.forEach(c=>{const td=document.createElement('td');td.textContent=c;tr.appendChild(td)});
+      f.appendChild(tr);
+    });
+    body.appendChild(f);
+    const last=history.filter(r=>!r.err).slice(-1)[0];
+    if(last&&!running){$('rDl').textContent=last.dl.toFixed(1);$('rUl').textContent=last.ul.toFixed(1);$('rPg').textContent=last.ping.toFixed(0)}
+  }
+  drawChart();
+}
+
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function drawChart(){
+  const c=$('chart'),dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  c.width=w*dpr;c.height=h*dpr;
+  const g=c.getContext('2d');g.scale(dpr,dpr);g.clearRect(0,0,w,h);
+  const data=history.filter(r=>!r.err).slice(-60);
+  g.font='12px system-ui';g.fillStyle=css('--mute');
+  if(data.length<2){g.textAlign='center';g.fillText('Grafik muncul setelah minimal 2 tes.',w/2,h/2);return}
+  const L=38,R=8,T=8,B=22,pw=w-L-R,ph=h-T-B;
+  const max=Math.max(1,...data.map(r=>Math.max(r.dl,r.ul)))*1.1;
+  g.strokeStyle=css('--line');g.textAlign='right';
+  for(let i=0;i<=4;i++){
+    const y=T+ph-ph*i/4;
+    g.beginPath();g.moveTo(L,y);g.lineTo(w-R,y);g.stroke();
+    g.fillText((max*i/4).toFixed(0),L-6,y+4);
+  }
+  const x=i=>L+pw*i/(data.length-1);
+  const line=(k,col)=>{
+    g.strokeStyle=css(col);g.lineWidth=2;g.beginPath();
+    data.forEach((r,i)=>{const y=T+ph-ph*r[k]/max;i?g.lineTo(x(i),y):g.moveTo(x(i),y)});
+    g.stroke();
+  };
+  line('dl','--dl');line('ul','--ul');
+  const hf=new Intl.DateTimeFormat('id-ID',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hour12:false});
+  g.fillStyle=css('--mute');g.textAlign='left';g.fillText(hf.format(data[0].t).replace('.',':'),L,h-6);
+  g.textAlign='right';g.fillText(hf.format(data[data.length-1].t).replace('.',':'),w-R,h-6);
+}
+window.addEventListener('resize',drawChart);
+
+/* ---------- Ekspor / hapus ---------- */
+$('btnCsv').onclick=()=>{
+  if(!history.length){setStatus('Belum ada riwayat untuk diekspor.');return}
+  const p=n=>String(n).padStart(2,'0');
+  const rows=['waktu_wib,unduh_mbps,unggah_mbps,ping_ms,jenis,error'];
+  history.forEach(r=>{
+    const d=new Date(r.t+7*3600000);
+    const ts=d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate())+' '+p(d.getUTCHours())+':'+p(d.getUTCMinutes())+':'+p(d.getUTCSeconds());
+    rows.push([ts,r.dl==null?'':r.dl.toFixed(2),r.ul==null?'':r.ul.toFixed(2),r.ping==null?'':r.ping.toFixed(0),r.auto?'otomatis':'manual',r.err?'"'+r.err.replace(/"/g,'""')+'"':''].join(','));
+  });
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'}));
+  a.download='riwayat-kecepatan-internet.csv';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+$('btnClear').onclick=()=>{
+  if(history.length&&confirm('Hapus semua riwayat di perangkat ini? Ekspor CSV dulu jika perlu cadangan.')){
+    history=[];save(HKEY,history);$('rDl').textContent=$('rUl').textContent=$('rPg').textContent='–';render();
+  }
+};
+
+/* ---------- Mulai ---------- */
+applySettings();render();tick();setInterval(tick,1000);
+if(settings.auto){setWake(true);scheduleNext()}
+})();
+</script>
+</body>
+</html>
