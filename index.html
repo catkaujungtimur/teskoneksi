@@ -7,6 +7,13 @@
 <style>
 :root{--bg:#f3f5f4;--card:#fff;--ink:#17211d;--mute:#66736d;--line:#dbe2de;--acc:#0f766e;--dl:#0f766e;--ul:#b45309;--pg:#4f46e5}
 @media (prefers-color-scheme:dark){:root{--bg:#101614;--card:#18211e;--ink:#e8efec;--mute:#93a39b;--line:#2a3733;--acc:#2dd4bf;--dl:#2dd4bf;--ul:#fbbf24;--pg:#a5b4fc}}
+:root{--c1:#15803d;--c2:#0f766e;--c3:#b45309;--c4:#b91c1c}
+@media (prefers-color-scheme:dark){:root{--c1:#4ade80;--c2:#2dd4bf;--c3:#fbbf24;--c4:#f87171}}
+.pc{font-weight:600}
+.help p,.help li{margin:0 0 8px}
+.help ul{padding-left:20px;margin:0 0 10px}
+.help h3{font-size:.95rem;margin:14px 0 6px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 main{max-width:860px;margin:0 auto;padding:20px 16px 48px}
@@ -54,7 +61,7 @@ th{position:sticky;top:0;background:var(--card);color:var(--mute);font-weight:60
   <div class="stats">
     <div class="stat"><b id="rDl" style="color:var(--dl)">–</b><span>Unduh (Mbps)</span></div>
     <div class="stat"><b id="rUl" style="color:var(--ul)">–</b><span>Unggah (Mbps)</span></div>
-    <div class="stat"><b id="rPg" style="color:var(--pg)">–</b><span>Ping (ms)</span></div>
+    <div class="stat"><b id="rPg" style="color:var(--pg)">–</b><span>Ping (ms)</span><span id="rPgCat" class="pc" style="display:block"></span></div>
   </div>
   <div class="row" style="margin-top:14px"><button class="main" id="btnTest">Tes sekarang</button></div>
   <div id="status" aria-live="polite">Siap.</div>
@@ -90,6 +97,41 @@ th{position:sticky;top:0;background:var(--card);color:var(--mute);font-weight:60
     <tbody id="rows"></tbody>
   </table></div>
   <div style="color:var(--mute);font-size:.85rem;margin-top:8px">Riwayat tersimpan hanya di browser perangkat ini. Ekspor CSV secara berkala sebagai cadangan.</div>
+</section>
+<section class="card help">
+  <h2>Keterangan singkat</h2>
+
+  <h3>Apa arti tiga angka itu?</h3>
+  <ul>
+    <li><b>Unduh (Mbps):</b> seberapa cepat data masuk ke komputer. Menentukan kecepatan buka halaman, unduh file, dan lampiran email.</li>
+    <li><b>Unggah (Mbps):</b> seberapa cepat data keluar dari komputer. Menentukan kecepatan kirim file, lampiran, dan sinkronisasi cloud.</li>
+    <li><b>Ping (ms):</b> waktu tunggu satu kali bolak-balik ke server. Makin kecil makin baik. Menentukan seberapa "responsif" aplikasi online saat diklik.</li>
+  </ul>
+
+  <h3>Kategori ping</h3>
+  <ul>
+    <li><span class="dot" style="background:var(--c1)"></span><b>0–20 ms, Sangat cepat:</b> paling mantap.</li>
+    <li><span class="dot" style="background:var(--c2)"></span><b>20–50 ms, Baik:</b> nyaman dipakai.</li>
+    <li><span class="dot" style="background:var(--c3)"></span><b>50–100 ms, Cukup:</b> masih bisa dipakai, tapi kadang terasa sedikit lambat.</li>
+    <li><span class="dot" style="background:var(--c4)"></span><b>Di atas 100 ms, Buruk:</b> aplikasi online terasa tertunda atau tersendat.</li>
+  </ul>
+  <p>Ping di halaman ini diukur lewat server Cloudflare, jadi biasanya 5–30 ms lebih tinggi dari tes ping biasa. Bandingkan antar jam di halaman ini, jangan dengan alat lain.</p>
+
+  <h3>Cara membaca pola siang vs malam</h3>
+  <ul>
+    <li><b>Unduh turun, ping normal:</b> bandwidth terbatas atau terbagi ke banyak pengguna.</li>
+    <li><b>Ping naik tinggi, unduh biasa saja:</b> jalur atau provider bermasalah. Ini yang paling terasa sebagai "lemot" di aplikasi web.</li>
+    <li><b>Keduanya memburuk di jam yang sama:</b> jaringan padat. Ekspor CSV dan tunjukkan ke provider sebagai bukti.</li>
+    <li><b>Status "gagal":</b> koneksi sempat putus saat tes. Catat jamnya.</li>
+  </ul>
+
+  <h3>Hal yang perlu diingat</h3>
+  <ul>
+    <li>Tab ini harus tetap terbuka agar tes otomatis jalan. Jika komputer tidur atau tab ditutup, tes berhenti.</li>
+    <li>Tiap tes memakai sekitar 25 MB unduh dan 8 MB unggah. Interval 15–30 menit sudah cukup untuk melihat pola.</li>
+    <li>Riwayat hanya tersimpan di browser perangkat ini. Jika data situs dihapus, riwayat hilang, jadi ekspor CSV secara berkala.</li>
+    <li>Hasil tes bisa terpengaruh jika ada orang lain sedang mengunduh besar di jaringan yang sama saat tes berjalan.</li>
+  </ul>
 </section>
 </main>
 
@@ -181,7 +223,7 @@ async function runTest(source){
   const rec={t:Date.now(),dl:null,ul:null,ping:null,auto:source==='auto',err:null};
   try{
     setStatus('Mengukur ping…');
-    rec.ping=await measurePing(); $('rPg').textContent=rec.ping.toFixed(0);
+    rec.ping=await measurePing(); $('rPg').textContent=rec.ping.toFixed(0);showPingCat(rec.ping);
     setStatus('Mengukur unduh…');
     rec.dl=await measureDown(); $('rDl').textContent=rec.dl.toFixed(1);
     setStatus('Mengukur unggah…');
@@ -239,6 +281,19 @@ $('autoYes').onclick=()=>{settings.auto=true;applySettings();setWake(true);if(!r
 $('autoNo').onclick=()=>{settings.auto=false;applySettings();setWake(false);clearTimeout(timer);nextAt=null};
 $('btnTest').onclick=()=>{clearTimeout(timer);runTest('manual')};
 
+/* ---------- Kategori ping ---------- */
+function cat(ms){
+  if(ms<=20)return{t:'Sangat cepat',c:'--c1'};
+  if(ms<=50)return{t:'Baik',c:'--c2'};
+  if(ms<=100)return{t:'Cukup',c:'--c3'};
+  return{t:'Buruk',c:'--c4'};
+}
+function showPingCat(ms){
+  const e=$('rPgCat');
+  if(ms==null){e.textContent='';return}
+  const k=cat(ms);e.textContent=k.t;e.style.color='var('+k.c+')';
+}
+
 /* ---------- Tampilan riwayat ---------- */
 function render(){
   const body=$('rows'); body.innerHTML='';
@@ -250,13 +305,17 @@ function render(){
     history.slice().reverse().slice(0,300).forEach(r=>{
       const tr=document.createElement('tr');
       const cells=r.err?[rf.format(r.t).replace(/\./g,':'),'gagal','gagal','gagal']
-        :[rf.format(r.t).replace(/\./g,':'),r.dl.toFixed(1)+' Mbps',r.ul.toFixed(1)+' Mbps',r.ping.toFixed(0)+' ms'];
-      cells.forEach(c=>{const td=document.createElement('td');td.textContent=c;tr.appendChild(td)});
+        :[rf.format(r.t).replace(/\./g,':'),r.dl.toFixed(1)+' Mbps',r.ul.toFixed(1)+' Mbps',r.ping.toFixed(0)+' ms · '+cat(r.ping).t];
+      cells.forEach((c,i)=>{
+        const td=document.createElement('td');td.textContent=c;
+        if(i===3){td.className='pc';td.style.color='var('+(r.err?'--c4':cat(r.ping).c)+')'}
+        tr.appendChild(td);
+      });
       f.appendChild(tr);
     });
     body.appendChild(f);
     const last=history.filter(r=>!r.err).slice(-1)[0];
-    if(last&&!running){$('rDl').textContent=last.dl.toFixed(1);$('rUl').textContent=last.ul.toFixed(1);$('rPg').textContent=last.ping.toFixed(0)}
+    if(last&&!running){$('rDl').textContent=last.dl.toFixed(1);$('rUl').textContent=last.ul.toFixed(1);$('rPg').textContent=last.ping.toFixed(0);showPingCat(last.ping)}
   }
   drawChart();
 }
@@ -307,7 +366,7 @@ $('btnCsv').onclick=()=>{
 };
 $('btnClear').onclick=()=>{
   if(history.length&&confirm('Hapus semua riwayat di perangkat ini? Ekspor CSV dulu jika perlu cadangan.')){
-    history=[];save(HKEY,history);$('rDl').textContent=$('rUl').textContent=$('rPg').textContent='–';render();
+    history=[];save(HKEY,history);$('rDl').textContent=$('rUl').textContent=$('rPg').textContent='–';showPingCat(null);render();
   }
 };
 
