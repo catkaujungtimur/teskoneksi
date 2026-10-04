@@ -10,6 +10,14 @@
 :root{--c1:#15803d;--c2:#0f766e;--c3:#b45309;--c4:#b91c1c}
 @media (prefers-color-scheme:dark){:root{--c1:#4ade80;--c2:#2dd4bf;--c3:#fbbf24;--c4:#f87171}}
 .pc{font-weight:600}
+details.card>summary{cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px;padding:2px 0}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::before{content:"▸";color:var(--mute);transition:transform .15s}
+details.card[open]>summary::before{transform:rotate(90deg)}
+details.card[open]>summary{margin-bottom:12px}
+details.card>summary:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:4px}
+.badge{font-weight:600;font-size:.8rem;padding:1px 8px;border-radius:99px;background:var(--acc);color:#fff}
+@media (prefers-color-scheme:dark){.badge{color:#04211d}}
 .help p,.help li{margin:0 0 8px}
 .help ul{padding-left:20px;margin:0 0 10px}
 .help h3{font-size:.95rem;margin:14px 0 6px}
@@ -67,8 +75,8 @@ th{position:sticky;top:0;background:var(--card);color:var(--mute);font-weight:60
   <div id="status" aria-live="polite">Siap.</div>
 </section>
 
-<section class="card">
-  <h2>Tes otomatis</h2>
+<details class="card" id="dAuto">
+  <summary>Tes otomatis <span id="autoBadge"></span></summary>
   <div class="row" style="margin-bottom:10px">
     <span class="lbl">Aktifkan?</span>
     <button id="autoYes">Ya</button><button id="autoNo">Tidak</button>
@@ -79,13 +87,13 @@ th{position:sticky;top:0;background:var(--card);color:var(--mute);font-weight:60
   </div>
   <div id="next" style="color:var(--mute);margin-top:10px"></div>
   <div style="color:var(--mute);font-size:.85rem;margin-top:6px">Tab ini harus tetap terbuka agar tes otomatis berjalan. Jangan matikan layar atau mode tidur komputer.</div>
-</section>
+</details>
 
-<section class="card">
-  <h2>Grafik riwayat</h2>
+<details class="card" id="dChart">
+  <summary>Grafik riwayat</summary>
   <canvas id="chart"></canvas>
   <div class="legend"><span><i style="background:var(--dl)"></i>Unduh</span><span><i style="background:var(--ul)"></i>Unggah</span></div>
-</section>
+</details>
 
 <section class="card">
   <div class="row" style="justify-content:space-between;margin-bottom:10px">
@@ -98,8 +106,8 @@ th{position:sticky;top:0;background:var(--card);color:var(--mute);font-weight:60
   </table></div>
   <div style="color:var(--mute);font-size:.85rem;margin-top:8px">Riwayat tersimpan hanya di browser perangkat ini. Ekspor CSV secara berkala sebagai cadangan.</div>
 </section>
-<section class="card help">
-  <h2>Keterangan singkat</h2>
+<details class="card help" id="dHelp">
+  <summary>Keterangan singkat</summary>
 
   <h3>Apa arti tiga angka itu?</h3>
   <ul>
@@ -132,7 +140,7 @@ th{position:sticky;top:0;background:var(--card);color:var(--mute);font-weight:60
     <li>Riwayat hanya tersimpan di browser perangkat ini. Jika data situs dihapus, riwayat hilang, jadi ekspor CSV secara berkala.</li>
     <li>Hasil tes bisa terpengaruh jika ada orang lain sedang mengunduh besar di jaringan yang sama saat tes berjalan.</li>
   </ul>
-</section>
+</details>
 </main>
 
 <script>
@@ -269,6 +277,9 @@ function applySettings(){
   $('autoYes').classList.toggle('on',settings.auto);
   $('autoNo').classList.toggle('on',!settings.auto);
   document.querySelectorAll('#intervals button').forEach(b=>b.classList.toggle('on',+b.dataset.m===settings.interval));
+  const bd=$('autoBadge');
+  if(settings.auto){bd.className='badge';bd.textContent='Aktif · '+(settings.interval===60?'1 jam':settings.interval+' menit')}
+  else{bd.className='';bd.textContent=''}
   save(SKEY,settings);
 }
 INTERVALS.forEach(m=>{
@@ -348,6 +359,7 @@ function drawChart(){
   g.textAlign='right';g.fillText(hf.format(data[data.length-1].t).replace('.',':'),w-R,h-6);
 }
 window.addEventListener('resize',drawChart);
+$('dChart').addEventListener('toggle',()=>{if($('dChart').open)drawChart()});
 
 /* ---------- Ekspor / hapus ---------- */
 $('btnCsv').onclick=()=>{
