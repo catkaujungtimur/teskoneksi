@@ -27,7 +27,25 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-app
 main{max-width:860px;margin:0 auto;padding:20px 16px 48px}
 header{text-align:center;padding:12px 0 20px}
 #clock{font-size:clamp(2.4rem,9vw,4rem);font-weight:700;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+#clock{white-space:nowrap}
 #date{color:var(--mute);margin-top:2px}
+#dateTxt,#tz{display:block}
+#tz{font-size:.9rem}
+.view{justify-content:center;margin-top:14px;gap:6px 18px}
+.view .grp{display:flex;align-items:center;gap:6px}
+.view .grp>span{color:var(--mute);font-size:.85rem;margin-right:2px}
+.view button{font-size:.85rem;padding:5px 11px}
+body{overflow-x:hidden}
+html[data-clock="2"] header,html[data-clock="3"] header{width:100vw;margin-left:calc(50% - 50vw);padding-left:8px;padding-right:8px}
+html[data-clock="2"] #clock{font-size:14vw}
+html[data-clock="3"] #clock{font-size:18vw}
+html[data-clock="2"] #dateTxt{font-size:3vw}
+html[data-clock="3"] #dateTxt{font-size:3.8vw}
+html[data-clock="2"] #tz{font-size:2.2vw}
+html[data-clock="3"] #tz{font-size:2.8vw}
+html[data-bg="black"]{color-scheme:dark;--bg:#000;--card:#000;--ink:#f5f5f5;--mute:#9a9a9a;--line:#2b2b2b;--acc:#2dd4bf;--dl:#2dd4bf;--ul:#fbbf24;--pg:#a5b4fc;--c1:#4ade80;--c2:#2dd4bf;--c3:#fbbf24;--c4:#f87171}
+html[data-bg="black"] button.on,html[data-bg="black"] button.main,html[data-bg="black"] .badge{color:#04211d}
+html[data-bg="black"] th{background:#000}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
 h2{font-size:1rem;margin:0 0 10px}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -61,7 +79,15 @@ th{position:sticky;top:0;background:var(--card);color:var(--mute);font-weight:60
 <main>
 <header>
   <div id="clock">--:--:--</div>
-  <div id="date">Waktu Indonesia Barat (WIB, GMT+7)</div>
+  <div id="date"><span id="dateTxt"></span><span id="tz">WIB (GMT+7)</span></div>
+  <div class="row view">
+    <div class="grp"><span>Ukuran jam</span>
+      <button data-clock="1">Kecil</button><button data-clock="2">Sedang</button><button data-clock="3">Besar</button>
+    </div>
+    <div class="grp"><span>Latar hitam</span>
+      <button id="bgOn">ON</button><button id="bgOff">OFF</button>
+    </div>
+  </div>
 </header>
 
 <section class="card">
@@ -162,7 +188,7 @@ const rf=new Intl.DateTimeFormat('id-ID',{timeZone:TZ,day:'2-digit',month:'short
 function tick(){
   const n=new Date();
   $('clock').textContent=tf.format(n).replace(/\./g,':');
-  $('date').textContent=df.format(n)+' · WIB (GMT+7)';
+  $('dateTxt').textContent=df.format(n);
   updateNext();
 }
 
@@ -382,8 +408,25 @@ $('btnClear').onclick=()=>{
   }
 };
 
+/* ---------- Tampilan: ukuran jam & latar hitam ---------- */
+const VKEY='speedView.v1';
+let view=Object.assign({clock:'1',black:false},load(VKEY,{}));
+function applyView(){
+  const h=document.documentElement;
+  h.dataset.clock=view.clock;
+  if(view.black)h.dataset.bg='black';else delete h.dataset.bg;
+  document.querySelectorAll('[data-clock]').forEach(b=>{if(b.tagName==='BUTTON')b.classList.toggle('on',b.dataset.clock===view.clock)});
+  $('bgOn').classList.toggle('on',view.black);
+  $('bgOff').classList.toggle('on',!view.black);
+  save(VKEY,view);
+  drawChart();
+}
+document.querySelectorAll('button[data-clock]').forEach(b=>b.onclick=()=>{view.clock=b.dataset.clock;applyView()});
+$('bgOn').onclick=()=>{view.black=true;applyView()};
+$('bgOff').onclick=()=>{view.black=false;applyView()};
+
 /* ---------- Mulai ---------- */
-applySettings();render();tick();setInterval(tick,1000);
+applyView();applySettings();render();tick();setInterval(tick,1000);
 if(settings.auto){setWake(true);scheduleNext()}
 })();
 </script>
